@@ -1,0 +1,47 @@
+name: EduGrade DevSecOps CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  security-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Semgrep SAST scan
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: p/python
+
+      - name: Trivy filesystem and IaC scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scanners: vuln,config
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          ignore-unfixed: true
+
+      - name: Build container image
+        run: docker build -t edugrade:ci app/
+
+      - name: Trivy container image scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: edugrade:ci
+          severity: CRITICAL
+          exit-code: "1"
+          ignore-unfixed: true

@@ -1,0 +1,39 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata: { name: edugrade-hardening }
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+  - name: require-non-root
+    match: { any: [{ resources: { kinds: [Pod], namespaces: [edugrade] } }] }
+    validate:
+      message: "Pods en non-root obligatoire."
+      pattern:
+        spec:
+          containers:
+          - securityContext: { runAsNonRoot: true }
+  - name: no-privileged
+    match: { any: [{ resources: { kinds: [Pod], namespaces: [edugrade] } }] }
+    validate:
+      message: "Privileged interdit."
+      pattern:
+        spec:
+          containers:
+          - =(securityContext): { =(privileged): "false" }
+  - name: no-latest-tag
+    match: { any: [{ resources: { kinds: [Pod], namespaces: [edugrade] } }] }
+    validate:
+      message: "Tag :latest interdit."
+      pattern:
+        spec:
+          containers:
+          - image: "!*:latest"
+  - name: require-limits
+    match: { any: [{ resources: { kinds: [Pod], namespaces: [edugrade] } }] }
+    validate:
+      message: "Limits CPU/memoire obligatoires."
+      pattern:
+        spec:
+          containers:
+          - resources: { limits: { cpu: "?*", memory: "?*" } }
