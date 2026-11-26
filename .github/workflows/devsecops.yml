@@ -23,17 +23,12 @@ jobs:
           GITLEAKS_ENABLE_UPLOAD_ARTIFACT: false
 
       - name: 2. Static Analysis SAST (Semgrep)
-        uses: returntocorp/semgrep-action@v1
-        with:
-          config: >-
-            p/python
-            p/flask
-            p/owasp-top-ten
-        env:
-          SEMGREP_RULES: p/security-audit
+        run: |
+          pip install semgrep
+          semgrep scan --config auto --error app/
 
       - name: 3. Dependency Scan SCA (Trivy FS)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
           scan-ref: 'app/'
@@ -44,7 +39,7 @@ jobs:
         run: docker build -t edugrade:${{ github.sha }} .
 
       - name: 4. Container Image Scan (Trivy Image)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@master
         with:
           image-ref: 'edugrade:${{ github.sha }}'
           severity: 'CRITICAL,HIGH'
@@ -52,7 +47,7 @@ jobs:
           exit-code: '1'
 
       - name: 5. IaC Manifest Scan (Trivy Config)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'config'
           scan-ref: 'k8s/'
