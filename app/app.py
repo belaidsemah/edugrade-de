@@ -87,3 +87,67 @@ with app.app_context():
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=5000, debug=False)
+
+@app.route("/", methods=["GET"])
+def index():
+    return """<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>EduGrade — Portail DevSecOps Sécurisé</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; max-width: 720px; margin: 40px auto; padding: 20px; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+    h1 { color: #38bdf8; margin-top: 0; }
+    input, button { padding: 10px; border-radius: 6px; border: 1px solid #475569; margin: 5px 0; width: 100%; box-sizing: border-box; }
+    input { background: #0f172a; color: #f8fafc; }
+    button { background: #0284c7; color: white; font-weight: bold; cursor: pointer; border: none; }
+    button:hover { background: #0369a1; }
+    pre { background: #020617; padding: 12px; border-radius: 6px; overflow-x: auto; color: #4ade80; }
+    .badge { background: #065f46; color: #6ee7b7; padding: 3px 8px; border-radius: 999px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>EduGrade <span class="badge">DevSecOps Hardened</span></h1>
+    <p>Portail académique sécurisé — TEK-UP University (ING-5-J-SSIRF)</p>
+  </div>
+
+  <div class="card">
+    <h3>1. Authentification Sécurisée (Anti-SQLi & JWT)</h3>
+    <input id="user" placeholder="Nom d'utilisateur (ex: alice ou payload SQLi)" value="alice">
+    <input id="pass" type="password" placeholder="Mot de passe" value="AliceStrong#2026">
+    <button onclick="login()">Se connecter (/login)</button>
+    <pre id="loginOut">En attente...</pre>
+  </div>
+
+  <div class="card">
+    <h3>2. Consultation des Notes (Contrôle RBAC / Anti-IDOR)</h3>
+    <input id="sid" placeholder="ID Étudiant (ex: 1 ou 2)" value="1">
+    <button onclick="getGrades()">Consulter (/api/grades//grades/&lt;id&gt;lt;id/grades/&lt;id&gt;gt;)</button>
+    <pre id="gradesOut">En attente...</pre>
+  </div>
+
+  <script>
+    let token = "";
+    async function login() {
+      const res = await fetch('/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username: document.getElementById('user').value, password: document.getElementById('pass').value})
+      });
+      const data = await res.json();
+      if (data.token) token = data.token;
+      document.getElementById('loginOut').textContent = JSON.stringify(data, null, 2);
+    }
+    async function getGrades() {
+      const id = document.getElementById('sid').value;
+      const res = await fetch('/api/grades/' + id, {
+        headers: token ? {'Authorization': 'Bearer ' + token} : {}
+      });
+      const text = await res.text();
+      document.getElementById('gradesOut').textContent = 'HTTP ' + res.status + '\\n' + text;
+    }
+  </script>
+</body>
+</html>""", 200
