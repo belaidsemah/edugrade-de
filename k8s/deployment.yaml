@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: edugrade-app
+  namespace: edugrade
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: edugrade
+  template:
+    metadata:
+      labels:
+        app: edugrade
+    spec:
+      serviceAccountName: edugrade-sa
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: edugrade
+          image: edugrade:secure
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5000
+          env:
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: edugrade-secrets
+                  key: jwt-secret
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+          volumeMounts:
+            - name: tmp-vol
+              mountPath: /tmp
+      volumes:
+        - name: tmp-vol
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: edugrade-svc
+  namespace: edugrade
+spec:
+  selector:
+    app: edugrade
+  ports:
+    - port: 80
+      targetPort: 5000

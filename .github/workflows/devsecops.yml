@@ -1,0 +1,60 @@
+name: DevSecOps Security Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  security-gates:
+    name: 5 Security Controls (Blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 1. Secret Detection (Gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: false
+
+      - name: 2. Static Analysis SAST (Semgrep)
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/python
+            p/flask
+            p/owasp-top-ten
+        env:
+          SEMGREP_RULES: p/security-audit
+
+      - name: 3. Dependency Scan SCA (Trivy FS)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: 'fs'
+          scan-ref: 'app/'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+
+      - name: Build Container Image
+        run: docker build -t edugrade:${{ github.sha }} .
+
+      - name: 4. Container Image Scan (Trivy Image)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: 'edugrade:${{ github.sha }}'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          exit-code: '1'
+
+      - name: 5. IaC Manifest Scan (Trivy Config)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: 'config'
+          scan-ref: 'k8s/'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
